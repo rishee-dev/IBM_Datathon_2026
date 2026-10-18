@@ -1,0 +1,106 @@
+{
+  "model_version": "1.0.0",
+  "model_name": "RandomForest",
+  "selection_rationale": "Random Forest achieved higher validation PR-AUC (0.2862 vs 0.2774) and effectively models non-linear interactions across velocity, foreign country, and channel.",
+  "trained_timestamp": "2026-10-17T13:52:12.560292+00:00",
+  "random_seed": 42,
+  "split_sizes": {
+    "total_samples": 6000,
+    "train_samples": 4200,
+    "val_samples": 900,
+    "test_samples": 900
+  },
+  "operating_threshold": 0.45,
+  "threshold_selection_objective": "Maximize Recall subject to FPR <= 4.5% on validation partition",
+  "feature_schema": [
+    "amount",
+    "customer_baseline",
+    "amount_to_baseline_ratio",
+    "recent_transaction_count",
+    "time_since_previous_seconds",
+    "device_risk_score",
+    "channel",
+    "merchant_category",
+    "is_foreign_country"
+  ],
+  "validation_comparison": {
+    "LogisticRegression": {
+      "pr_auc": 0.2774,
+      "roc_auc": 0.8236,
+      "default_0_5_metrics": {
+        "threshold": 0.5,
+        "precision": 0.1679,
+        "recall": 0.6765,
+        "f1": 0.269,
+        "fpr": 0.1316,
+        "confusion_matrix": {
+          "true_negatives": 752,
+          "false_positives": 114,
+          "false_negatives": 11,
+          "true_positives": 23
+        }
+      },
+      "optimal_threshold": 0.83,
+      "optimal_val_metrics": {
+        "threshold": 0.83,
+        "precision": 0.4103,
+        "recall": 0.4706,
+        "f1": 0.4384,
+        "fpr": 0.0266,
+        "confusion_matrix": {
+          "true_negatives": 843,
+          "false_positives": 23,
+          "false_negatives": 18,
+          "true_positives": 16
+        }
+      }
+    },
+    "RandomForest": {
+      "pr_auc": 0.2862,
+      "roc_auc": 0.7783,
+      "default_0_5_metrics": {
+        "threshold": 0.5,
+        "precision": 0.3529,
+        "recall": 0.3529,
+        "f1": 0.3529,
+        "fpr": 0.0254,
+        "confusion_matrix": {
+          "true_negatives": 844,
+          "false_positives": 22,
+          "false_negatives": 22,
+          "true_positives": 12
+        }
+      },
+      "optimal_threshold": 0.45,
+      "optimal_val_metrics": {
+        "threshold": 0.45,
+        "precision": 0.4048,
+        "recall": 0.5,
+        "f1": 0.4474,
+        "fpr": 0.0289,
+        "confusion_matrix": {
+          "true_negatives": 841,
+          "false_positives": 25,
+          "false_negatives": 17,
+          "true_positives": 17
+        }
+      }
+    }
+  },
+  "test_metrics": {
+    "threshold": 0.45,
+    "precision": 0.2593,
+    "recall": 0.2121,
+    "f1": 0.2333,
+    "fpr": 0.0231,
+    "confusion_matrix": {
+      "true_negatives": 847,
+      "false_positives": 20,
+      "false_negatives": 26,
+      "true_positives": 7
+    },
+    "pr_auc": 0.2197,
+    "roc_auc": 0.6862
+  },
+  "synthetic_data_disclosure": "Model trained and evaluated on synthetic financial transactions generated for the IBM Z Datathon 2026. Metrics represent demonstration benchmarks on held-out synthetic test splits, not validated real-world banking production performance."
+}
