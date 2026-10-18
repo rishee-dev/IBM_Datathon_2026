@@ -23,24 +23,7 @@ def get_metrics() -> Metrics:
         highRiskTransactions=summary["highRiskTransactions"],
         alertsGenerated=summary["alertsGenerated"],
         averageLatencyMs=summary["averageLatencyMs"],
-        volumeData=[
-            {"time": "10:35", "value": 420},
-            {"time": "10:36", "value": 510},
-            {"time": "10:37", "value": 486},
-            {"time": "10:38", "value": 620},
-            {"time": "10:39", "value": 570},
-            {"time": "10:40", "value": 708},
-            {"time": "10:41", "value": 680},
-            {"time": "10:42", "value": 744},
-        ],
-        latencyData=[
-            {"time": "10:35", "value": 19},
-            {"time": "10:36", "value": 22},
-            {"time": "10:37", "value": 18},
-            {"time": "10:38", "value": 24},
-            {"time": "10:39", "value": 21},
-            {"time": "10:40", "value": 28},
-            {"time": "10:41", "value": 25},
-            {"time": "10:42", "value": 23},
-        ],
+        volumeData=summary.get("volumeData", []),
+        latencyData=summary.get("latencyData", []),
     )
+

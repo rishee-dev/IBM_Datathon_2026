@@ -347,7 +347,7 @@ class SQLiteRepository:
     # --- Metrics & Telemetry ---
 
     def get_metrics_summary(self) -> Dict[str, Any]:
-        """Computes real counts and average latency across stored transactions and alerts."""
+        """Computes real counts, average latency, and real time-series points across stored transactions and alerts."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) AS total FROM transactions;")
@@ -361,13 +361,39 @@ class SQLiteRepository:
 
             cursor.execute("SELECT AVG(processing_latency_ms) AS avg_lat FROM transactions WHERE processing_latency_ms > 0;")
             row_lat = cursor.fetchone()
-            avg_latency = round(row_lat["avg_lat"], 1) if row_lat and row_lat["avg_lat"] else 23.4
+            avg_latency = round(row_lat["avg_lat"], 1) if row_lat and row_lat["avg_lat"] else 0.0
+
+            # Real telemetry series derived from stored transactions (newest 12 points, chronologically ordered)
+            cursor.execute(
+                """
+                SELECT timestamp, processing_latency_ms
+                FROM transactions
+                WHERE processing_latency_ms > 0
+                ORDER BY rowid DESC
+                LIMIT 12;
+                """
+            )
+            rows = cursor.fetchall()
+            chrono_rows = list(reversed(rows))
+
+            latency_data = []
+            volume_data = []
+            cum_vol = max(0, total_tx - len(chrono_rows))
+            for r in chrono_rows:
+                ts = r["timestamp"]
+                time_label = ts[:8] if len(ts) >= 8 else ts
+                lat_val = round(r["processing_latency_ms"], 1)
+                latency_data.append({"time": time_label, "value": lat_val})
+                cum_vol += 1
+                volume_data.append({"time": time_label, "value": cum_vol})
 
             return {
                 "transactionsProcessed": total_tx,
                 "highRiskTransactions": high_risk,
                 "alertsGenerated": total_alerts,
                 "averageLatencyMs": avg_latency,
+                "volumeData": volume_data,
+                "latencyData": latency_data,
             }
 
     # --- ID Generation ---
