@@ -339,6 +339,20 @@ class SQLiteRepository:
             status=ReviewStatus(row["status"]),
         )
 
+    def update_alert_status(self, alert_id: str, new_status: ReviewStatus) -> Optional[Alert]:
+        """Atomically updates the status of an alert and returns the updated record."""
+        status_val = new_status.value if isinstance(new_status, ReviewStatus) else str(new_status)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE alerts SET status = ? WHERE id = ?;",
+                (status_val, alert_id),
+            )
+            conn.commit()
+            if cursor.rowcount == 0:
+                return None
+        return self.get_alert(alert_id)
+
     # --- Audit Operations ---
 
     def save_audit_log(self, record: AuditRecord) -> AuditRecord:

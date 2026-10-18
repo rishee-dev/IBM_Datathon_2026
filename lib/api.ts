@@ -129,6 +129,22 @@ export interface HealthResponse {
   ibmZAdapter: IBMZAdapterStatus
 }
 
+export interface EngineConfig {
+  high_risk_threshold: number
+  medium_risk_threshold: number
+  amount_anomaly_multiplier: number
+  amount_elevated_multiplier: number
+  velocity_burst_tx_per_hour: number
+  velocity_elevated_tx_per_hour: number
+  rapid_cadence_seconds: number
+  device_risk_threshold: number
+  high_value_channel_amount: number
+  high_risk_merchants: string[]
+  action_high: string
+  action_medium: string
+  action_low: string
+}
+
 export class ApiError extends Error {
   status: number
   detail?: string
@@ -237,4 +253,15 @@ export async function getAuditTrail(limit?: number): Promise<AuditRecord[]> {
 
 export async function getModelPerformance(): Promise<ModelPerformance> {
   return apiFetch<ModelPerformance>('/api/model/performance')
+}
+
+export async function updateAlertStatus(alertId: string, status: ReviewStatus): Promise<Alert> {
+  return apiFetch<Alert>(`/api/alerts/${encodeURIComponent(alertId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function getEngineConfig(): Promise<EngineConfig> {
+  return apiFetch<EngineConfig>('/api/engine/config')
 }

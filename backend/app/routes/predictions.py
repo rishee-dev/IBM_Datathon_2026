@@ -5,9 +5,33 @@ Connects directly to the trained RiskPredictor with authentic performance benchm
 
 from fastapi import APIRouter, HTTPException, status
 from app.ml.predictor import predictor
-from app.schemas import PredictionRequest, PredictionResponse, ModelPerformance
+from app.engine.config import engine_config
+from app.schemas import PredictionRequest, PredictionResponse, ModelPerformance, EngineConfigResponse
 
 router = APIRouter(tags=["Model & Predictions"])
+
+
+@router.get("/engine/config", response_model=EngineConfigResponse)
+def get_engine_config() -> EngineConfigResponse:
+    """
+    Returns active decision engine boundary thresholds, action mappings,
+    and observable indicator trigger parameters.
+    """
+    return EngineConfigResponse(
+        high_risk_threshold=engine_config.high_risk_threshold,
+        medium_risk_threshold=engine_config.medium_risk_threshold,
+        amount_anomaly_multiplier=engine_config.amount_anomaly_multiplier,
+        amount_elevated_multiplier=engine_config.amount_elevated_multiplier,
+        velocity_burst_tx_per_hour=engine_config.velocity_burst_tx_per_hour,
+        velocity_elevated_tx_per_hour=engine_config.velocity_elevated_tx_per_hour,
+        rapid_cadence_seconds=engine_config.rapid_cadence_seconds,
+        device_risk_threshold=engine_config.device_risk_threshold,
+        high_value_channel_amount=engine_config.high_value_channel_amount,
+        high_risk_merchants=engine_config.high_risk_merchants,
+        action_high=engine_config.action_high,
+        action_medium=engine_config.action_medium,
+        action_low=engine_config.action_low,
+    )
 
 
 @router.post("/predict", response_model=PredictionResponse)

@@ -206,3 +206,41 @@ def test_get_audit_trail_schema():
     assert len(audit_logs) > 0
     assert "id" in audit_logs[0]
     assert "action" in audit_logs[0]
+
+
+def test_update_alert_status_success():
+    """Verify updating alert status succeeds and reflects in alert retrieval."""
+    alerts = client.get("/api/alerts").json()
+    assert len(alerts) > 0
+    alert_id = alerts[0]["id"]
+
+    # Transition to 'In review'
+    patch_res = client.patch(f"/api/alerts/{alert_id}", json={"status": "In review"})
+    assert patch_res.status_code == 200
+    updated = patch_res.json()
+    assert updated["status"] == "In review"
+
+    # Transition to 'Resolved'
+    resolve_res = client.patch(f"/api/alerts/{alert_id}", json={"status": "Resolved"})
+    assert resolve_res.status_code == 200
+    assert resolve_res.json()["status"] == "Resolved"
+
+
+def test_update_alert_status_not_found():
+    """Verify updating an invalid alert returns 404."""
+    response = client.patch("/api/alerts/ALT-NONEXISTENT-9999", json={"status": "In review"})
+    assert response.status_code == 404
+
+
+def test_get_engine_config_schema():
+    """Verify GET /api/engine/config returns active thresholds and policy rules."""
+    response = client.get("/api/engine/config")
+    assert response.status_code == 200
+    cfg = response.json()
+    assert "high_risk_threshold" in cfg
+    assert "medium_risk_threshold" in cfg
+    assert cfg["high_risk_threshold"] == 0.450
+    assert cfg["medium_risk_threshold"] == 0.270
+    assert cfg["action_high"] == "Hold for review"
+    assert cfg["action_medium"] == "Step-up authentication"
+    assert cfg["action_low"] == "Allow"

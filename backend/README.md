@@ -93,3 +93,14 @@ Interactive OpenAPI Swagger UI is available at: [http://127.0.0.1:8000/docs](htt
 ```powershell
 Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/health"
 ```
+
+---
+
+## Architecture & Security References
+
+For in-depth architectural and operational specifications:
+- **[Engineering Audit & Baseline Architecture](../docs/engineering_audit.md)**: ML pipeline benchmarks, SQLite WAL concurrency, and Decision Engine rules.
+- **[Application Security Review & Threat Model](../docs/security_review.md)**: STRIDE analysis, input validation, SQL injection prevention, and Zero Silent Fallback standards.
+- **[IBM Z Architecture Specification](../docs/ibm_z_architecture.md)**: Adapter subsystem separating local execution from remote IBM z/OS Connect.
+- **[IBM LinuxONE Deployment Guide](../docs/linuxone_deployment_guide.md)**: Complete s390x VM setup, systemd services, and SSH tunnel configuration.
+

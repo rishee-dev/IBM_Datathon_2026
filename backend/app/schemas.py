@@ -181,3 +181,23 @@ class HealthResponse(BaseModel):
     modelStatus: str
     databaseStatus: str
     ibmZAdapter: IBMZAdapterStatus
+
+
+class UpdateAlertRequest(BaseModel):
+    status: ReviewStatus = Field(..., description="Target lifecycle review status: Needs review | In review | Resolved")
+
+
+class EngineConfigResponse(BaseModel):
+    high_risk_threshold: float = Field(..., description="Threshold for HIGH risk classification")
+    medium_risk_threshold: float = Field(..., description="Threshold for MEDIUM risk classification")
+    amount_anomaly_multiplier: float
+    amount_elevated_multiplier: float
+    velocity_burst_tx_per_hour: int
+    velocity_elevated_tx_per_hour: int
+    rapid_cadence_seconds: int
+    device_risk_threshold: float
+    high_value_channel_amount: float
+    high_risk_merchants: List[str]
+    action_high: str
+    action_medium: str
+    action_low: str
