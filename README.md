@@ -17,32 +17,6 @@
 
 ---
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Problem](#problem)
-- [Solution](#solution)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Explainable AI](#explainable-ai)
-- [Model Evaluation](#model-evaluation)
-- [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Environment Configuration](#environment-configuration)
-- [Run Locally](#run-locally)
-- [API Documentation](#api-documentation)
-- [Testing](#testing)
-- [Public Deployment](#public-deployment)
-- [IBM Z and LinuxONE](#ibm-z-and-linuxone)
-- [Security and Data Integrity](#security-and-data-integrity)
-- [Limitations](#limitations)
-- [Roadmap](#roadmap)
-- [Team](#team)
-- [License](#license)
-
----
-
 ## Overview
 
 **SentinelZ AI** is an AI-assisted transaction-risk intelligence platform designed to demonstrate how machine learning, deterministic risk policies, evidence-backed explanations, and audit trails can support financial transaction monitoring.
@@ -50,8 +24,6 @@
 The application evaluates transaction information, derives risk indicators, obtains an ML prediction, applies configured decision policies, and records supported decisions and investigation actions.
 
 SentinelZ AI separates a model output from a policy decision so investigators can inspect the information behind a recommendation.
-
-> **Project status:** This is a demonstration and engineering prototype using synthetic transaction data. It is not a production banking fraud-prevention system.
 
 ## Problem
 
@@ -337,8 +309,7 @@ The engineering report previously recorded tests in a Windows environment with N
 Replace the placeholders with your actual repository URL and directory:
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
-cd YOUR_REPOSITORY_DIRECTORY
+git clone https://github.com/rishee-dev/IBM_Datathon_2026.git
 ```
 
 ### 2. Install frontend dependencies
@@ -605,8 +576,20 @@ An audit table alone does not guarantee cryptographic integrity, tamper resistan
 ### Maharishee Ambati
 Full-Stack Development · DevOps
 
-### Alluri Ram Roshith
+### Tejaswi Bayyapureddigari
+Full-stack Devolpment
+
+### RamiReddyGari Keerthana
 Python Development
+
+### Hema Sundar Reddy
+AI Engineer
+
+### Adithya Velkur
+AI Engineer
+
+### Deepak Chowdhary kuchi
+Prompt Engineer
 
 ## Acknowledgements
 
