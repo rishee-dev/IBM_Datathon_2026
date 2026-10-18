@@ -23,6 +23,7 @@ export interface Transaction {
   recommendedAction: string
   indicators: string[]
   processingTimestamp: string
+  processedBy?: string
 }
 
 export interface Metrics {
@@ -86,6 +87,7 @@ export interface SimulationResponse {
   processingLatencyMs: number
   scenario: string
   syntheticDisclosure: string
+  processedBy?: string
 }
 
 export interface ModelPerformance {
@@ -96,6 +98,7 @@ export interface ModelPerformance {
   f1Score: number | null
   falsePositiveRate: number | null
   prAuc: number | null
+  rocAuc?: number | null
   confusionMatrix: Record<string, number> | null
   datasetDisclosures: string
 }
@@ -112,6 +115,9 @@ export interface IBMZAdapterStatus {
   status: string
   connection: string
   details: string
+  mode?: string
+  capabilities?: string[]
+  targetHost?: string
 }
 
 export interface HealthResponse {

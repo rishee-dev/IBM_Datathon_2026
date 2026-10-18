@@ -239,14 +239,30 @@ def train_and_evaluate_pipeline(
         "split_sizes": {
             "total_samples": n_samples,
             "train_samples": len(X_train),
+            "train_positives": int(y_train.sum()),
+            "train_negatives": int(len(y_train) - y_train.sum()),
             "val_samples": len(X_val),
+            "val_positives": int(y_val.sum()),
+            "val_negatives": int(len(y_val) - y_val.sum()),
             "test_samples": len(X_test),
+            "test_positives": int(y_test.sum()),
+            "test_negatives": int(len(y_test) - y_test.sum()),
         },
         "operating_threshold": selected_threshold,
         "threshold_selection_objective": "Maximize Recall subject to FPR <= 4.5% on validation partition",
         "feature_schema": INFERENCE_FEATURE_COLUMNS,
         "validation_comparison": val_comparison,
         "test_metrics": test_metrics,
+        "historical_initial_benchmark": {
+            "stage": "Stage 4 baseline",
+            "threshold": 0.45,
+            "precision": 0.2593,
+            "recall": 0.2121,
+            "f1": 0.2333,
+            "fpr": 0.0231,
+            "pr_auc": 0.2197,
+            "roc_auc": 0.6862,
+        },
         "synthetic_data_disclosure": (
             "Model trained and evaluated on synthetic financial transactions generated for the "
             "IBM Z Datathon 2026. Metrics represent demonstration benchmarks on held-out synthetic test splits, "

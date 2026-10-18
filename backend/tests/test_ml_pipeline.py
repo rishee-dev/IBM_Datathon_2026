@@ -146,3 +146,95 @@ def test_risk_predictor_graceful_missing_field_defaults():
     result = predictor.predict_transaction(minimal_payload)
     assert 0 <= result["riskScore"] <= 100
     assert result["riskLevel"] in ["low", "medium", "high"]
+
+
+def test_predictions_consistent_before_and_after_save_and_reload(tmp_path):
+    """Verify that model predictions and probabilities are identical before saving and after reloading."""
+    import joblib
+    import json
+    from app.ml.features import INFERENCE_FEATURE_COLUMNS
+
+    results = train_and_evaluate_pipeline(n_samples=1000, seed=42, persist_artifacts=False)
+    pipeline = results["metadata"]["validation_comparison"]["RandomForest"]
+    
+    # Train pipeline instance directly
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.pipeline import Pipeline
+    from app.ml.preprocessor import build_feature_preprocessor
+    
+    df = generate_synthetic_transactions(n_samples=1000, seed=42)
+    splits = prepare_data_splits(df, test_ratio=0.15, val_ratio=0.15, seed=42)
+    
+    train_pipe = Pipeline(
+        steps=[
+            ("preprocessor", build_feature_preprocessor()),
+            ("classifier", RandomForestClassifier(n_estimators=50, max_depth=6, random_state=42)),
+        ]
+    )
+    train_pipe.fit(splits["X_train"], splits["y_train"])
+
+    test_payload = {
+        "amount": 4200.0,
+        "channel": "Wire",
+        "merchant_category": "electronics",
+        "customer_baseline": 350.0,
+        "amount_to_baseline_ratio": 12.0,
+        "recent_transaction_count": 4,
+        "time_since_previous_seconds": 60,
+        "is_foreign_country": 1,
+        "device_risk_score": 0.72,
+    }
+
+    test_row = pd.DataFrame([test_payload])[INFERENCE_FEATURE_COLUMNS]
+    prob_before = float(train_pipe.predict_proba(test_row)[0][1])
+
+    # Save to disk
+    pipe_path = tmp_path / "model_pipeline.joblib"
+    meta_path = tmp_path / "metadata.json"
+    joblib.dump(train_pipe, pipe_path)
+
+    meta_content = {
+        "model_version": "1.0.0-test",
+        "model_name": "RandomForest",
+        "operating_threshold": 0.45,
+        "test_metrics": {"pr_auc": 0.5, "roc_auc": 0.8},
+    }
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta_content, f)
+
+    # Reload fresh instance from disk
+    reloaded_predictor = RiskPredictor(artifacts_dir=tmp_path)
+    assert reloaded_predictor.is_ready
+
+    result_after = reloaded_predictor.predict_transaction(test_payload)
+    prob_after = result_after["modelProbability"]
+
+    assert round(prob_before, 4) == round(prob_after, 4)
+    assert 0 <= result_after["riskScore"] <= 100
+
+
+def test_unloaded_model_raises_runtime_error_without_fabrication(tmp_path):
+    """Verify that calling predictor with missing model artifacts raises RuntimeError and never fabricates output."""
+    empty_predictor = RiskPredictor(artifacts_dir=tmp_path)
+    assert not empty_predictor.is_ready
+
+    with pytest.raises(RuntimeError, match="Model pipeline is not loaded"):
+        empty_predictor.predict_transaction({"amount": 100.0, "channel": "Card"})
+
+
+def test_unknown_categorical_values_handled_gracefully():
+    """Verify that unseen categorical channels or merchant categories are zero-encoded without throwing errors."""
+    assert predictor.is_ready
+
+    unseen_payload = {
+        "amount": 500.0,
+        "channel": "QuantumDirectPay",
+        "merchant_category": "asteroid_mining",
+        "customer_baseline": 200.0,
+    }
+
+    # Should execute successfully without throwing ValueError or KeyError
+    result = predictor.predict_transaction(unseen_payload)
+    assert 0 <= result["riskScore"] <= 100
+    assert 0.0 <= result["modelProbability"] <= 1.0
+

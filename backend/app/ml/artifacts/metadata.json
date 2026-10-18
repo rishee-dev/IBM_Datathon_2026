@@ -2,13 +2,19 @@
   "model_version": "1.0.0",
   "model_name": "RandomForest",
   "selection_rationale": "Random Forest achieved higher validation PR-AUC (0.2862 vs 0.2774) and effectively models non-linear interactions across velocity, foreign country, and channel.",
-  "trained_timestamp": "2026-10-17T13:52:12.560292+00:00",
+  "trained_timestamp": "2026-10-18T07:13:07.303110+00:00",
   "random_seed": 42,
   "split_sizes": {
     "total_samples": 6000,
     "train_samples": 4200,
+    "train_positives": 155,
+    "train_negatives": 4045,
     "val_samples": 900,
-    "test_samples": 900
+    "val_positives": 34,
+    "val_negatives": 866,
+    "test_samples": 900,
+    "test_positives": 33,
+    "test_negatives": 867
   },
   "operating_threshold": 0.45,
   "threshold_selection_objective": "Maximize Recall subject to FPR <= 4.5% on validation partition",
@@ -99,6 +105,16 @@
       "false_negatives": 26,
       "true_positives": 7
     },
+    "pr_auc": 0.2197,
+    "roc_auc": 0.6862
+  },
+  "historical_initial_benchmark": {
+    "stage": "Stage 4 baseline",
+    "threshold": 0.45,
+    "precision": 0.2593,
+    "recall": 0.2121,
+    "f1": 0.2333,
+    "fpr": 0.0231,
     "pr_auc": 0.2197,
     "roc_auc": 0.6862
   },

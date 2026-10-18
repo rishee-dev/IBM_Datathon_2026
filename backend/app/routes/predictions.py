@@ -64,6 +64,7 @@ def get_model_performance() -> ModelPerformance:
         f1Score=test_metrics.get("f1"),
         falsePositiveRate=test_metrics.get("fpr"),
         prAuc=test_metrics.get("pr_auc"),
+        rocAuc=test_metrics.get("roc_auc"),
         confusionMatrix=test_metrics.get("confusion_matrix"),
         datasetDisclosures=meta.get(
             "synthetic_data_disclosure",

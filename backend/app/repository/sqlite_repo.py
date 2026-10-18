@@ -6,6 +6,8 @@ Seeds baseline demonstration records on initialization while supporting persiste
 
 import json
 import sqlite3
+import threading
+import contextlib
 import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -23,14 +25,24 @@ class SQLiteRepository:
 
     def __init__(self, db_path: Optional[Path] = None):
         self.db_path = db_path or DB_PATH
+        self._id_lock = threading.Lock()
+        self._last_tx_num = 0
+        self._alert_id_lock = threading.Lock()
+        self._last_alert_num = 0
         self._init_db()
 
-    def _get_connection(self) -> sqlite3.Connection:
-        """Returns a configured SQLite connection with row_factory set to sqlite3.Row."""
-        conn = sqlite3.connect(str(self.db_path), timeout=10.0)
+    @contextlib.contextmanager
+    def _get_connection(self):
+        """Yields a configured SQLite connection with row_factory set to sqlite3.Row and guarantees clean closure."""
+        conn = sqlite3.connect(str(self.db_path), timeout=30.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA busy_timeout = 30000;")
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         """Creates tables if they do not exist and populates baseline demonstration records."""
@@ -52,10 +64,17 @@ class SQLiteRepository:
                     processing_timestamp TEXT NOT NULL,
                     inference_latency_ms REAL DEFAULT 0.0,
                     processing_latency_ms REAL DEFAULT 0.0,
+                    processed_by TEXT DEFAULT 'sentinelz_local',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 """
             )
+
+            # Migration check: add processed_by column if missing
+            cursor.execute("PRAGMA table_info(transactions);")
+            columns = [col["name"] for col in cursor.fetchall()]
+            if "processed_by" not in columns:
+                cursor.execute("ALTER TABLE transactions ADD COLUMN processed_by TEXT DEFAULT 'sentinelz_local';")
 
             # Alerts Table
             cursor.execute(
@@ -102,17 +121,17 @@ class SQLiteRepository:
             if count == 0:
                 # 1. Baseline Transactions
                 seed_txs = [
-                    ("TXN-849201", "10:42:18.205", 24850.0, "Wire", 92, "high", "Hold for review", json.dumps(["Velocity anomaly", "New beneficiary", "Geo mismatch"]), "10:42:18.221", 24.2, 38.5),
-                    ("TXN-849200", "10:42:17.998", 1250.50, "Card", 18, "low", "Allow", json.dumps(["Known device"]), "10:42:18.012", 18.0, 25.1),
-                    ("TXN-849199", "10:42:17.701", 7800.0, "ACH", 61, "medium", "Step-up authentication", json.dumps(["Amount deviation", "Account age"]), "10:42:17.719", 21.5, 30.2),
-                    ("TXN-849198", "10:42:17.432", 340.25, "Mobile", 9, "low", "Allow", json.dumps(["Normal pattern"]), "10:42:17.448", 16.8, 22.4),
-                    ("TXN-849197", "10:42:16.904", 52100.0, "Wire", 87, "high", "Hold for review", json.dumps(["High-value transfer", "Velocity anomaly"]), "10:42:16.929", 28.1, 41.0),
-                    ("TXN-849196", "10:42:16.580", 2190.75, "Card", 44, "medium", "Monitor", json.dumps(["Unusual merchant"]), "10:42:16.596", 19.3, 27.8),
+                    ("TXN-849201", "10:42:18.205", 24850.0, "Wire", 92, "high", "Hold for review", json.dumps(["Velocity anomaly", "New beneficiary", "Geo mismatch"]), "10:42:18.221", 24.2, 38.5, "sentinelz_local"),
+                    ("TXN-849200", "10:42:17.998", 1250.50, "Card", 18, "low", "Allow", json.dumps(["Known device"]), "10:42:18.012", 18.0, 25.1, "sentinelz_local"),
+                    ("TXN-849199", "10:42:17.701", 7800.0, "ACH", 61, "medium", "Step-up authentication", json.dumps(["Amount deviation", "Account age"]), "10:42:17.719", 21.5, 30.2, "sentinelz_local"),
+                    ("TXN-849198", "10:42:17.432", 340.25, "Mobile", 9, "low", "Allow", json.dumps(["Normal pattern"]), "10:42:17.448", 16.8, 22.4, "sentinelz_local"),
+                    ("TXN-849197", "10:42:16.904", 52100.0, "Wire", 87, "high", "Hold for review", json.dumps(["High-value transfer", "Velocity anomaly"]), "10:42:16.929", 28.1, 41.0, "sentinelz_local"),
+                    ("TXN-849196", "10:42:16.580", 2190.75, "Card", 44, "medium", "Monitor", json.dumps(["Unusual merchant"]), "10:42:16.596", 19.3, 27.8, "sentinelz_local"),
                 ]
                 cursor.executemany(
                     """
-                    INSERT INTO transactions (id, timestamp, amount, channel, risk_score, risk_level, recommended_action, indicators, processing_timestamp, inference_latency_ms, processing_latency_ms)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    INSERT INTO transactions (id, timestamp, amount, channel, risk_score, risk_level, recommended_action, indicators, processing_timestamp, inference_latency_ms, processing_latency_ms, processed_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                     """,
                     seed_txs,
                 )
@@ -167,12 +186,13 @@ class SQLiteRepository:
     ) -> Transaction:
         """Atomically saves a processed transaction."""
         indicators_json = json.dumps(tx.indicators)
+        processed_by = getattr(tx, "processedBy", "sentinelz_local") or "sentinelz_local"
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO transactions (id, timestamp, amount, channel, risk_score, risk_level, recommended_action, indicators, processing_timestamp, inference_latency_ms, processing_latency_ms)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                INSERT INTO transactions (id, timestamp, amount, channel, risk_score, risk_level, recommended_action, indicators, processing_timestamp, inference_latency_ms, processing_latency_ms, processed_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     tx.id,
@@ -186,6 +206,7 @@ class SQLiteRepository:
                     tx.processingTimestamp,
                     inference_latency_ms,
                     processing_latency_ms,
+                    processed_by,
                 ),
             )
             conn.commit()
@@ -234,6 +255,12 @@ class SQLiteRepository:
         except Exception:
             indicators = []
 
+        processed_by = (
+            row["processed_by"]
+            if "processed_by" in row.keys() and row["processed_by"]
+            else "sentinelz_local"
+        )
+
         return Transaction(
             id=row["id"],
             timestamp=row["timestamp"],
@@ -244,6 +271,7 @@ class SQLiteRepository:
             recommendedAction=row["recommended_action"],
             indicators=indicators,
             processingTimestamp=row["processing_timestamp"],
+            processedBy=processed_by,
         )
 
     # --- Alert Operations ---
@@ -400,35 +428,37 @@ class SQLiteRepository:
 
     def generate_next_transaction_id(self) -> str:
         """Generates a sequential, collision-free transaction ID (e.g. TXN-849202)."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM transactions WHERE id LIKE 'TXN-%';")
-            rows = cursor.fetchall()
-            max_num = 0
-            for row in rows:
-                parts = row["id"].split("-")
-                if len(parts) == 2 and parts[1].isdigit():
-                    max_num = max(max_num, int(parts[1]))
-            if max_num > 0:
-                return f"TXN-{max_num + 1}"
-            import uuid
-            return f"TXN-{uuid.uuid4().hex[:6].upper()}"
+        with self._id_lock:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM transactions WHERE id LIKE 'TXN-%';")
+                rows = cursor.fetchall()
+                max_num = 0
+                for row in rows:
+                    parts = row["id"].split("-")
+                    if len(parts) == 2 and parts[1].isdigit():
+                        max_num = max(max_num, int(parts[1]))
+                if self._last_tx_num <= max_num:
+                    self._last_tx_num = max_num
+                self._last_tx_num += 1
+                return f"TXN-{self._last_tx_num}"
 
     def generate_next_alert_id(self) -> str:
         """Generates a sequential, collision-free alert ID (e.g. ALT-2049)."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM alerts WHERE id LIKE 'ALT-%';")
-            rows = cursor.fetchall()
-            max_num = 0
-            for row in rows:
-                parts = row["id"].split("-")
-                if len(parts) == 2 and parts[1].isdigit():
-                    max_num = max(max_num, int(parts[1]))
-            if max_num > 0:
-                return f"ALT-{max_num + 1}"
-            import uuid
-            return f"ALT-{uuid.uuid4().hex[:4].upper()}"
+        with self._alert_id_lock:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM alerts WHERE id LIKE 'ALT-%';")
+                rows = cursor.fetchall()
+                max_num = 0
+                for row in rows:
+                    parts = row["id"].split("-")
+                    if len(parts) == 2 and parts[1].isdigit():
+                        max_num = max(max_num, int(parts[1]))
+                if self._last_alert_num <= max_num:
+                    self._last_alert_num = max_num
+                self._last_alert_num += 1
+                return f"ALT-{self._last_alert_num}"
 
 
 # Global repository singleton instance

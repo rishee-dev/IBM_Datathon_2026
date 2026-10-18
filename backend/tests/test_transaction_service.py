@@ -249,3 +249,118 @@ def test_e2e_api_simulate_and_retrieval():
         alert_ids = [a["id"] for a in alerts_res.json()]
         assert alert_id in alert_ids
 
+
+def test_duplicate_transaction_id_raises_integrity_error(clean_service):
+    """Verify that inserting a transaction with an existing primary key raises sqlite3.IntegrityError."""
+    import sqlite3
+    from app.schemas import Transaction, Channel, RiskLevel
+    _, repo = clean_service
+
+    tx = Transaction(
+        id="TXN-DUPLICATE-001",
+        timestamp="10:00:00",
+        amount=100.0,
+        channel=Channel.CARD,
+        riskScore=10,
+        riskLevel=RiskLevel.LOW,
+        recommendedAction="Allow",
+        indicators=["Normal pattern"],
+        processingTimestamp="10:00:00.010",
+        processedBy="sentinelz_local",
+    )
+    repo.save_transaction(tx)
+
+    # Attempting to insert the exact same primary key must fail
+    with pytest.raises(sqlite3.IntegrityError):
+        repo.save_transaction(tx)
+
+
+def test_transaction_provenance_persisted_correctly(clean_service):
+    """Verify that processor provenance is persisted and accurately retrieved from SQLite."""
+    from app.schemas import Transaction, Channel, RiskLevel
+    _, repo = clean_service
+
+    tx = Transaction(
+        id="TXN-PROV-TEST",
+        timestamp="11:00:00",
+        amount=500.0,
+        channel=Channel.ACH,
+        riskScore=25,
+        riskLevel=RiskLevel.LOW,
+        recommendedAction="Allow",
+        indicators=["Normal pattern"],
+        processingTimestamp="11:00:00.005",
+        processedBy="sentinelz_local",
+    )
+    repo.save_transaction(tx)
+
+    fetched = repo.get_transaction("TXN-PROV-TEST")
+    assert fetched is not None
+    assert fetched.processedBy == "sentinelz_local"
+
+
+def test_foreign_key_cascade_on_transaction_delete(clean_service):
+    """Verify that SQLite foreign key cascade removes orphaned alerts when transaction is removed."""
+    from app.schemas import Transaction, Alert, Channel, RiskLevel, ReviewStatus
+    _, repo = clean_service
+
+    tx = Transaction(
+        id="TXN-CASCADE-TEST",
+        timestamp="12:00:00",
+        amount=15000.0,
+        channel=Channel.WIRE,
+        riskScore=90,
+        riskLevel=RiskLevel.HIGH,
+        recommendedAction="Hold for review",
+        indicators=["High value"],
+        processingTimestamp="12:00:00.010",
+    )
+    repo.save_transaction(tx)
+
+    alert = Alert(
+        id="ALT-CASCADE-TEST",
+        transactionId="TXN-CASCADE-TEST",
+        riskScore=90,
+        reason="Test high value",
+        nextStep="Investigate",
+        status=ReviewStatus.NEEDS_REVIEW,
+    )
+    repo.save_alert(alert)
+
+    # Verify both exist
+    assert repo.get_transaction("TXN-CASCADE-TEST") is not None
+    assert repo.get_alert("ALT-CASCADE-TEST") is not None
+
+    # Delete transaction with foreign keys enabled
+    with repo._get_connection() as conn:
+        conn.execute("DELETE FROM transactions WHERE id = ?;", ("TXN-CASCADE-TEST",))
+        conn.commit()
+
+    # Alert must be cascade deleted
+    assert repo.get_transaction("TXN-CASCADE-TEST") is None
+    assert repo.get_alert("ALT-CASCADE-TEST") is None
+
+
+def test_concurrent_transaction_simulations(clean_service):
+    """Verify thread-safety and constraint integrity under concurrent simulation requests."""
+    import concurrent.futures
+    service, repo = clean_service
+
+    def run_sim(idx):
+        return service.simulate_transaction(scenario="normal", seed=idx)
+
+    # Execute 8 simulations across parallel threads
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(run_sim, i + 500) for i in range(8)]
+        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+
+    assert len(results) == 8
+    tx_ids = [r["transaction"].id for r in results]
+    assert len(set(tx_ids)) == 8, f"Duplicate IDs generated during concurrency: {tx_ids}"
+
+    # Verify all 8 are retrieved from SQLite
+    all_tx = repo.list_transactions(limit=50)
+    for tid in tx_ids:
+        assert any(t.id == tid for t in all_tx)
+
+

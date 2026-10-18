@@ -391,11 +391,22 @@ export default function Page() {
               </span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-400">
-              <Cpu className="size-3 text-amber-400" />
-              <span>IBM Z: Unconfigured</span>
+              <Cpu
+                className={`size-3 ${
+                  health?.ibmZAdapter?.status === 'connected'
+                    ? 'text-emerald-400'
+                    : health?.ibmZAdapter?.status === 'configured'
+                      ? 'text-sky-400'
+                      : 'text-amber-400'
+                }`}
+              />
+              <span className="capitalize">
+                IBM Z: {health?.ibmZAdapter?.status ?? 'Unconfigured'}
+              </span>
             </div>
             <p className="text-[9px] leading-tight text-slate-500">
-              Running local verification mode until Stage 9 integration.
+              {health?.ibmZAdapter?.details ??
+                'Running in local verification mode until verified IBM Z service access is configured.'}
             </p>
           </div>
         </nav>
@@ -894,7 +905,7 @@ export default function Page() {
                       {selected.recommendedAction}
                     </p>
                     <p className="mt-1 text-[10px] text-slate-500">
-                      Decision policy guidance · synthetic demo benchmark
+                      Engine: {selected.processedBy || 'sentinelz_local'} · Advisory guidance
                     </p>
                   </div>
                 </div>
@@ -1013,7 +1024,7 @@ export default function Page() {
                   <Database className="size-5 text-slate-500" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="grid grid-cols-2 gap-3 py-4 sm:grid-cols-3">
                   {[
                     {
                       label: 'Precision',
@@ -1030,6 +1041,13 @@ export default function Page() {
                           : '—',
                     },
                     {
+                      label: 'F1-Score',
+                      val:
+                        performance?.f1Score !== null && performance?.f1Score !== undefined
+                          ? performance.f1Score.toFixed(4)
+                          : '—',
+                    },
+                    {
                       label: 'PR-AUC',
                       val:
                         performance?.prAuc !== null && performance?.prAuc !== undefined
@@ -1037,7 +1055,14 @@ export default function Page() {
                           : '—',
                     },
                     {
-                      label: 'False-Positive Rate',
+                      label: 'ROC-AUC',
+                      val:
+                        performance?.rocAuc !== null && performance?.rocAuc !== undefined
+                          ? performance.rocAuc.toFixed(4)
+                          : '—',
+                    },
+                    {
+                      label: 'FPR (False Pos)',
                       val:
                         performance?.falsePositiveRate !== null &&
                         performance?.falsePositiveRate !== undefined
@@ -1045,14 +1070,40 @@ export default function Page() {
                           : '—',
                     },
                   ].map((metric) => (
-                    <div key={metric.label}>
+                    <div key={metric.label} className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-2.5">
                       <p className="text-[10px] uppercase tracking-wider text-slate-500">
                         {metric.label}
                       </p>
-                      <p className="mt-1 text-lg font-semibold text-slate-200">{metric.val}</p>
+                      <p className="mt-1 text-base font-semibold text-slate-200">{metric.val}</p>
                     </div>
                   ))}
                 </div>
+
+                {performance?.confusionMatrix && (
+                  <div className="mb-3 rounded-lg border border-white/[0.06] bg-slate-950/60 p-2.5 text-[11px] font-mono text-slate-400">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500 font-sans mb-1">
+                      Held-Out Test Confusion Matrix (N=900)
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                      <div className="bg-emerald-950/30 border border-emerald-500/20 rounded p-1">
+                        <span className="text-emerald-400 font-semibold">TN: {performance.confusionMatrix.true_negatives}</span>
+                        <span className="block text-[9px] text-slate-500">Correct Normal</span>
+                      </div>
+                      <div className="bg-amber-950/30 border border-amber-500/20 rounded p-1">
+                        <span className="text-amber-400 font-semibold">FP: {performance.confusionMatrix.false_positives}</span>
+                        <span className="block text-[9px] text-slate-500">False Alarm</span>
+                      </div>
+                      <div className="bg-red-950/30 border border-red-500/20 rounded p-1">
+                        <span className="text-red-400 font-semibold">FN: {performance.confusionMatrix.false_negatives}</span>
+                        <span className="block text-[9px] text-slate-500">Missed Fraud</span>
+                      </div>
+                      <div className="bg-sky-950/30 border border-sky-500/20 rounded p-1">
+                        <span className="text-sky-400 font-semibold">TP: {performance.confusionMatrix.true_positives}</span>
+                        <span className="block text-[9px] text-slate-500">Caught Fraud</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="rounded-lg border border-amber-400/15 bg-amber-400/[0.04] p-3 text-[10px] leading-relaxed text-amber-200/80">
                   {performance?.datasetDisclosures ||

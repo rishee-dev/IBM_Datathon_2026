@@ -20,9 +20,15 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
     
-    # IBM Z integration configuration (placeholder until real credentials are provided)
+    # IBM Z integration configuration & operational modes:
+    # Supported modes: "local_simulation" (default) or "ibm_z"
+    ibm_z_mode: str = "local_simulation"
     ibm_z_host: str = ""
+    ibm_z_port: int = 443
     ibm_z_api_key: str = ""
+    ibm_z_use_tls: bool = True
+    ibm_z_timeout_seconds: float = 5.0
+    ibm_z_service_path: str = "/api/v1/transactions"
     ibm_z_enabled: bool = False
 
     model_config = SettingsConfigDict(

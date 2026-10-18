@@ -8,6 +8,7 @@ from app.config import settings
 from app.schemas import HealthResponse, IBMZAdapterStatus
 
 from app.ml.predictor import predictor
+from app.adapters.ibm_z import ibm_z_adapter
 
 router = APIRouter(tags=["Health"])
 
@@ -21,12 +22,8 @@ def get_health() -> HealthResponse:
     """
     uptime = round(time.time() - START_TIME, 2)
     
-    # Real, verifiable IBM Z adapter state: strictly unconfigured until verified in Stage 9
-    ibm_z_state = IBMZAdapterStatus(
-        status="unconfigured",
-        connection="none",
-        details="IBM Z adapter is currently unconfigured. Running in local verification mode until verified IBM Z service access is configured in Stage 9."
-    )
+    # Query adapter for honest configuration & connectivity state
+    ibm_z_state = ibm_z_adapter.get_status()
 
     if predictor.is_ready:
         model_status = f"loaded ({predictor.metadata.get('model_name', 'Model')} v{predictor.model_version}, threshold={predictor.operating_threshold:.3f})"

@@ -37,6 +37,7 @@ class Transaction(BaseModel):
     recommendedAction: str = Field(..., description="Evidence-based policy recommendation")
     indicators: List[str] = Field(default_factory=list, description="List of triggered risk indicators")
     processingTimestamp: str = Field(..., description="Completion timestamp of processing")
+    processedBy: Optional[str] = Field(default="sentinelz_local", description="Identifies execution system: sentinelz_local | ibm_z_rest")
 
     model_config = {
         "json_schema_extra": {
@@ -134,8 +135,10 @@ class SimulationResponse(BaseModel):
         default="Synthetic demonstration benchmark. Decision guidance is advisory.",
         description="Scientific disclosure"
     )
-
-
+    processedBy: Optional[str] = Field(
+        default="sentinelz_local",
+        description="Identifies execution system: sentinelz_local | ibm_z_rest"
+    )
 
 
 class ModelPerformance(BaseModel):
@@ -146,6 +149,7 @@ class ModelPerformance(BaseModel):
     f1Score: Optional[float] = None
     falsePositiveRate: Optional[float] = None
     prAuc: Optional[float] = None
+    rocAuc: Optional[float] = None
     confusionMatrix: Optional[Dict[str, int]] = None
     datasetDisclosures: str = Field(
         ...,
@@ -162,9 +166,12 @@ class AuditRecord(BaseModel):
 
 
 class IBMZAdapterStatus(BaseModel):
-    status: str = Field(..., description="unconfigured | unavailable | connected")
-    connection: str = Field(..., description="Type of connection or 'none'")
+    status: str = Field(..., description="unconfigured | unavailable | connected | configured | error")
+    connection: str = Field(..., description="Type of connection: none | https | http")
     details: str = Field(..., description="Accurate disclosure of current IBM Z adapter state")
+    mode: Optional[str] = Field(default="local_simulation", description="Active adapter mode: local_simulation | ibm_z")
+    capabilities: Optional[List[str]] = Field(default_factory=list, description="Supported mainframe services or capabilities")
+    targetHost: Optional[str] = Field(default=None, description="Configured target host (sanitized/masked)")
 
 
 class HealthResponse(BaseModel):
